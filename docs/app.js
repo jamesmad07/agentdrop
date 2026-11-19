@@ -15,9 +15,70 @@ const AGENT_ID_ABI = [
   "function handleOf(address) view returns (string)",
 ];
 
-const readProvider = new ethers.JsonRpcProvider(CFG.rpcUrls[0]);
-const boardRead = new ethers.Contract(CFG.boardAddress, BOARD_ABI, readProvider);
-const agentIdRead = new ethers.Contract(CFG.agentIdAddress, AGENT_ID_ABI, readProvider);
+// --- Read layer with automatic RPC failover --------------------------------
+// Public BSC RPCs rate-limit (HTTP 429 / JSON-RPC -32005 "limit exceeded"),
+// drop connections, or go down without warning. A single hard-coded endpoint
+// therefore makes the whole page look "not deployed" whenever that one
+// endpoint hiccups. Every read below runs through withRpcFallback(): the
+// current endpoint is tried first (with a timeout); on any failure the read
+// layer rotates to the next endpoint in CFG.rpcUrls and retries, and only
+// surfaces an error after EVERY endpoint has failed.
+const RPC_TIMEOUT_MS = 10000;
+let rpcIndex = 0;
+let readProvider = null;
+let boardRead = null;
+let agentIdRead = null;
+
+function setReadRpc(i) {
+  rpcIndex = ((i % CFG.rpcUrls.length) + CFG.rpcUrls.length) % CFG.rpcUrls.length;
+  readProvider = new ethers.JsonRpcProvider(CFG.rpcUrls[rpcIndex]);
+  boardRead = new ethers.Contract(CFG.boardAddress, BOARD_ABI, readProvider);
+  agentIdRead = new ethers.Contract(CFG.agentIdAddress, AGENT_ID_ABI, readProvider);
+}
+setReadRpc(0);
+
+function withTimeout(promise) {
+  const p = Promise.resolve(promise);
+  p.catch(() => {}); // avoid unhandled rejection if the timeout wins the race
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error("RPC request timed out")), RPC_TIMEOUT_MS);
+  });
+  return Promise.race([p, timeout]).finally(() => clearTimeout(timer));
+}
+
+// Run fn() against the current read RPC; on failure rotate to the next
+// endpoint and retry. fn is re-invoked per attempt so it always uses the
+// freshly built boardRead/agentIdRead/readProvider. Throws only when every
+// endpoint in CFG.rpcUrls has failed.
+async function withRpcFallback(fn) {
+  let lastErr;
+  for (let k = 0; k < CFG.rpcUrls.length; k++) {
+    try {
+      return await withTimeout(fn());
+    } catch (e) {
+      lastErr = e;
+      setReadRpc(rpcIndex + 1);
+    }
+  }
+  throw lastErr;
+}
+
+// eth_getLogs for one block chunk, rotating endpoints per chunk so one
+// throttled endpoint cannot sink a whole event scan.
+async function queryLogsChunk(filterClaimer, from, to) {
+  let lastErr;
+  for (let k = 0; k < CFG.rpcUrls.length; k++) {
+    try {
+      const filter = boardRead.filters.Claimed(null, filterClaimer ?? null);
+      return await withTimeout(boardRead.queryFilter(filter, from, to));
+    } catch (e) {
+      lastErr = e;
+      setReadRpc(rpcIndex + 1);
+    }
+  }
+  throw lastErr;
+}
 
 let signer = null;
 let account = null;
@@ -40,39 +101,43 @@ function dropState(d, now) {
   return "live";
 }
 
+async function renderDropsOnce(el) {
+  const count = Number(await boardRead.dropCount());
+  if (count === 0) {
+    el.innerHTML = '<p class="muted">No drops yet. The first drop opens at launch.</p>';
+    return;
+  }
+  const now = Math.floor(Date.now() / 1000);
+  const cards = [];
+  for (let i = 0; i < count; i++) {
+    const d = await boardRead.getDrop(i);
+    const state = dropState(d, now);
+    let claimed = false;
+    if (account) claimed = await boardRead.hasClaimed(i, account);
+    const quota =
+      d.maxClaims > 0 ? `${d.claimCount} / ${d.maxClaims} claimed` : `${d.claimCount} claimed (no cap)`;
+    let btn;
+    if (!account) btn = `<button disabled>Connect wallet to claim</button>`;
+    else if (claimed) btn = `<button disabled>Claimed ✓</button>`;
+    else if (!isHolder) btn = `<button disabled>Agent ID required</button>`;
+    else if (state === "live") btn = `<button data-claim="${i}">Claim badge</button>`;
+    else btn = `<button disabled>${state[0].toUpperCase() + state.slice(1)}</button>`;
+    cards.push(
+      `<article class="card"><h3>${esc(d.name)}</h3>` +
+        `<p class="badge-state state-${state}">${state.toUpperCase()}</p>` +
+        `<p>${quota}</p><p class="muted">${fmtWindow(d)}</p>${btn}</article>`
+    );
+  }
+  el.innerHTML = cards.join("");
+  el.querySelectorAll("[data-claim]").forEach((b) =>
+    b.addEventListener("click", () => doClaim(Number(b.dataset.claim), b))
+  );
+}
+
 async function renderDrops() {
   const el = $("drops");
   try {
-    const count = Number(await boardRead.dropCount());
-    if (count === 0) {
-      el.innerHTML = '<p class="muted">No drops yet. The first drop opens at launch.</p>';
-      return;
-    }
-    const now = Math.floor(Date.now() / 1000);
-    const cards = [];
-    for (let i = 0; i < count; i++) {
-      const d = await boardRead.getDrop(i);
-      const state = dropState(d, now);
-      let claimed = false;
-      if (account) claimed = await boardRead.hasClaimed(i, account);
-      const quota =
-        d.maxClaims > 0 ? `${d.claimCount} / ${d.maxClaims} claimed` : `${d.claimCount} claimed (no cap)`;
-      let btn;
-      if (!account) btn = `<button disabled>Connect wallet to claim</button>`;
-      else if (claimed) btn = `<button disabled>Claimed ✓</button>`;
-      else if (!isHolder) btn = `<button disabled>Agent ID required</button>`;
-      else if (state === "live") btn = `<button data-claim="${i}">Claim badge</button>`;
-      else btn = `<button disabled>${state[0].toUpperCase() + state.slice(1)}</button>`;
-      cards.push(
-        `<article class="card"><h3>${esc(d.name)}</h3>` +
-          `<p class="badge-state state-${state}">${state.toUpperCase()}</p>` +
-          `<p>${quota}</p><p class="muted">${fmtWindow(d)}</p>${btn}</article>`
-      );
-    }
-    el.innerHTML = cards.join("");
-    el.querySelectorAll("[data-claim]").forEach((b) =>
-      b.addEventListener("click", () => doClaim(Number(b.dataset.claim), b))
-    );
+    await withRpcFallback(() => renderDropsOnce(el));
   } catch (e) {
     el.innerHTML = '<p class="muted">Drops are not live yet (contract not deployed or unreachable).</p>';
   }
@@ -98,15 +163,11 @@ async function doClaim(dropId, btn) {
 }
 
 async function scanClaimedEvents(filterClaimer) {
-  const latest = await readProvider.getBlockNumber();
+  const latest = await withRpcFallback(() => readProvider.getBlockNumber());
   const events = [];
   for (let from = CFG.scanFromBlock; from <= latest; from += CFG.logChunkSize) {
     const to = Math.min(from + CFG.logChunkSize - 1, latest);
-    const logs = await boardRead.queryFilter(
-      boardRead.filters.Claimed(null, filterClaimer ?? null),
-      from,
-      to
-    );
+    const logs = await queryLogsChunk(filterClaimer, from, to);
     events.push(...logs);
     if (to === latest) break;
   }
@@ -120,7 +181,7 @@ async function renderBadges() {
     return;
   }
   try {
-    const n = await boardRead.balanceOf(account);
+    const n = await withRpcFallback(() => boardRead.balanceOf(account));
     if (n === 0n) {
       el.innerHTML = '<p class="muted">No badges yet — claim a live drop above.</p>';
       return;
@@ -160,11 +221,11 @@ async function refreshIdentity() {
     return;
   }
   try {
-    const bal = await agentIdRead.balanceOf(account);
+    const bal = await withRpcFallback(() => agentIdRead.balanceOf(account));
     isHolder = bal > 0n;
     if (isHolder) {
-      const handle = await agentIdRead.handleOf(account);
-      const badges = await boardRead.balanceOf(account).catch(() => 0n);
+      const handle = await withRpcFallback(() => agentIdRead.handleOf(account));
+      const badges = await withRpcFallback(() => boardRead.balanceOf(account)).catch(() => 0n);
       info.textContent = `${handle}.ai · ${badges} badge(s) · ${account.slice(0, 6)}…${account.slice(-4)}`;
       $("holderGuidance").hidden = true;
     } else {
