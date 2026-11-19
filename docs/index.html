@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgentDrop — Free claims for Agent ID holders</title>
+<meta name="description" content="A free-claim board exclusively for Agent ID holders. One person, one Agent ID, one claim per drop. Soulbound badges bound to your .ai handle.">
+<link rel="stylesheet" href="style.css">
+<script src="config.js"></script>
+</head>
+<body>
+<header>
+  <div class="brand">AgentDrop</div>
+  <div id="identity" class="identity">
+    <button id="connectBtn">Connect wallet</button>
+    <span id="identityInfo" class="muted">Not connected</span>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <h1>Free drops, only for Agent ID holders</h1>
+    <p>Every claim is verified on-chain against the official Agent ID contract.
+       One person = one Agent ID = one claim per drop. Badges are soulbound and
+       bound to your <em>.ai</em> handle.</p>
+    <p id="holderGuidance" class="notice" hidden>
+      This wallet does not hold an Agent ID. Agent IDs are claimed inside the
+      Binance App (Wallet &rarr; Agent ID). Come back with the wallet that holds
+      your <em>.ai</em> name to claim.
+    </p>
+  </section>
+
+  <section>
+    <h2>Drops</h2>
+    <div id="drops" class="grid"><p class="muted">Loading drops&hellip;</p></div>
+  </section>
+
+  <section>
+    <h2>My badges</h2>
+    <div id="myBadges"><p class="muted">Connect your wallet to see your badges.</p></div>
+  </section>
+
+  <section>
+    <h2>Top claimers</h2>
+    <div id="leaderboard"><p class="muted">Loading&hellip;</p></div>
+  </section>
+
+  <section class="about">
+    <h2>About &amp; security</h2>
+    <p><strong>How Agent ID is used.</strong> The board contract
+       (<a id="boardLink" href="#" target="_blank" rel="noopener">view on BscScan</a>)
+       gates every claim with the official Agent ID contract
+       (0x60B9262456dE011F7d15a54CdD8c48bAaa8B022F): it requires
+       <code>balanceOf(claimer) &gt; 0</code>, reads the claimer's handle via
+       <code>handleOf(address)</code>, and records that handle in the
+       <code>Claimed</code> event, permanently binding each badge to a
+       <em>.ai</em> name.</p>
+    <p><strong>No custody, no approvals.</strong> The contract never receives
+       or holds user funds, has no withdraw function, and never asks for token
+       approvals. Claiming is a single transaction that costs only network gas
+       (about $0.003).</p>
+    <p><strong>Owner permissions (complete list).</strong> The contract owner
+       can only: (1) create drops, (2) activate/deactivate a drop,
+       (3) correct a drop's time window. The owner cannot mint badges for
+       anyone, cannot change the Agent ID gate, cannot alter past claims, and
+       cannot move or take anyone's badge. The contract is not upgradeable.
+       Full source is public and verified on BscScan.</p>
+    <p><strong>Badges are collectibles.</strong> AgentDrop badges are
+       non-transferable memorabilia. They carry no monetary value, and no
+       returns, yield, income, or profit of any kind are promised or implied.</p>
+    <p><strong>Using an Agentic Wallet?</strong> You can also claim through
+       your agent by asking it to call <code>claim(dropId)</code> on the board
+       contract — you will confirm the transaction in your app as usual. This
+       site only uses a standard injected wallet connection; it never asks you
+       to scan a pairing code or to hand over a session.</p>
+  </section>
+</main>
+
+<footer class="muted">
+  AgentDrop — built for the Agent ID ecosystem. Not affiliated with any exchange.
+</footer>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

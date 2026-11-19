@@ -1,0 +1,18 @@
+:root { color-scheme: light dark; --accent: #b8860b; }
+* { box-sizing: border-box; }
+body { font-family: system-ui, sans-serif; margin: 0 auto; max-width: 960px; padding: 1rem; line-height: 1.5; }
+header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.brand { font-size: 1.5rem; font-weight: 800; }
+.identity { display: flex; align-items: center; gap: .6rem; }
+button { padding: .5rem 1rem; border-radius: .5rem; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
+.card { border: 1px solid #8884; border-radius: .75rem; padding: 1rem; }
+.badge-state { font-weight: 700; font-size: .8rem; letter-spacing: .05em; }
+.state-live { color: #1a9e4b; } .state-upcoming { color: #b8860b; }
+.state-ended, .state-inactive, .state-soldout { color: #999; }
+.notice { border: 1px solid #b8860b; border-radius: .5rem; padding: .75rem 1rem; }
+.muted { opacity: .65; }
+.about p { margin: .6rem 0; }
+footer { margin-top: 3rem; font-size: .85rem; }
+code { background: #8882; padding: 0 .25rem; border-radius: .25rem; }
