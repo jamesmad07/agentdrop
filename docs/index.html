@@ -23,6 +23,16 @@
     <p>Every claim is verified on-chain against the official Agent ID contract.
        One person = one Agent ID = one claim per drop. Badges are soulbound and
        bound to your <em>.ai</em> handle.</p>
+    <div class="grid" aria-label="Live traction">
+      <div class="card"><strong>35</strong> badges claimed</div>
+      <div class="card"><strong>32</strong> unique Agent ID holders</div>
+      <div class="card"><strong>2</strong> drops open until 9 Dec 2026</div>
+    </div>
+    <p class="muted">On-chain snapshot, 21 November 2026 — every claimer is a
+       verified Agent ID holder, enforced by the contract itself. Live counts
+       load with the drops below; verify any time via
+       <code>totalBadges()</code> on the
+       <a href="https://bscscan.com/address/0x4cfed72a30289d70B0036c81091C28C759726A1C" target="_blank" rel="noopener">board contract</a>.</p>
     <p id="holderGuidance" class="notice" hidden>
       This wallet does not hold an Agent ID. Agent IDs are claimed inside the
       Binance App (Wallet &rarr; Agent ID). Come back with the wallet that holds
@@ -73,11 +83,16 @@
        contract — you will confirm the transaction in your app as usual. This
        site only uses a standard injected wallet connection; it never asks you
        to scan a pairing code or to hand over a session.</p>
+    <p><strong>Open source.</strong> The full contract source, test suite,
+       security summary, and owner-permission disclosure are public in the
+       <a href="https://github.com/jamesmad07/agentdrop" target="_blank" rel="noopener">GitHub repository</a>.</p>
   </section>
 </main>
 
 <footer class="muted">
-  AgentDrop — built for the Agent ID ecosystem. Not affiliated with any exchange.
+  AgentDrop — built for the Agent ID Hackathon (Binance Wallet &times; BNB Chain).
+  Source: <a href="https://github.com/jamesmad07/agentdrop" target="_blank" rel="noopener">github.com/jamesmad07/agentdrop</a>.
+  Not affiliated with any exchange.
 </footer>
 
 <script type="module" src="app.js"></script>

@@ -13,11 +13,50 @@ one-person-one-claim — no separate allowlist, no off-chain Sybil filtering.
   [`0x4cfed72a30289d70B0036c81091C28C759726A1C`](https://bscscan.com/address/0x4cfed72a30289d70B0036c81091C28C759726A1C)
 - **Official Agent ID contract (BNB Smart Chain):**
   `0x60B9262456dE011F7d15a54CdD8c48bAaa8B022F`
-- **Claim site:** this repository's `docs/` folder, served via GitHub Pages
+- **Claim site (live):** https://jamesmad07.github.io/agentdrop/
+  (source in this repository's `docs/` folder, served via GitHub Pages)
 - **Contract:** `src/AgentDropBoard.sol` — a single contract, not
   upgradeable, no proxy
 - **License:** MIT · Solidity ^0.8.24 (built with solc 0.8.26) ·
   OpenZeppelin Contracts v5.1.0
+
+## The problem AgentDrop solves
+
+Free drops and allowlist claims are normally Sybil games: one person runs
+fifty wallets and takes fifty slots, while the project pays for off-chain
+filtering that never quite works. Agent ID changes the primitive — it is a
+verified, non-transferable, one-per-Binance-user identity that already
+lives on-chain. AgentDrop builds distribution directly on that primitive:
+the identity check *is* the allowlist, enforced by the contract itself on
+every claim. No sign-up forms, no wallet-list snapshots, no off-chain
+trust. Any project that wants fair, one-per-person distribution to the
+Agent ID ecosystem gets it from a single `createDrop` call (listing is
+owner-mediated in this v1 board).
+
+## Live traction
+
+On-chain snapshot, 21 November 2026 (independently reproducible — see
+"Verify it yourself" below):
+
+| Metric | Value |
+| --- | --- |
+| Badges claimed | **35** |
+| Unique Agent ID holders who claimed | **32** |
+| Drop #0 "Genesis" | 13 / 500 claimed |
+| Drop #1 "Second Wave" | 22 / 500 claimed |
+| Innovation-track threshold (≥ 30 unique Agent ID addresses) | **Met** |
+| Growth | 14 → 32 unique claimers in ~24 hours |
+
+Both drops are open until 9 December 2026, 08:00 UTC. Every claimer is a
+verified Agent ID holder by construction: the contract reverts any claim
+from a wallet that does not hold an Agent ID, and enforces one claim per
+address per drop.
+
+**Verify it yourself:** call `totalBadges()` and `getDrop(0)` /
+`getDrop(1)` on the
+[board contract](https://bscscan.com/address/0x4cfed72a30289d70B0036c81091C28C759726A1C),
+or iterate `ownerOf(tokenId)` for tokenIds 1–35 — because badges are
+soulbound, each owner is exactly the Agent ID holder who claimed it.
 
 ## How the Agent ID gate works
 
@@ -67,6 +106,23 @@ Badges are **soulbound collectibles**: every transfer or burn reverts in the
 ERC-721 `_update` hook. They are non-transferable memorabilia — **no value,
 returns, yield, or profit of any kind are promised or implied**.
 
+## Security summary
+
+- Source code is **verified on BscScan** ("Pass - Verified"), and the
+  deployed runtime bytecode is byte-identical to the local Foundry build
+  artifact of the source in this repository.
+- A documented **self-audit** (20 November 2026) reviewed the deployed
+  contract on-chain and in source: claim path, privilege surface, custody,
+  and the soulbound design. Its summary — including the honest note that a
+  generic buyer-protection rubric caps the score *because* the badges are
+  soulbound by design, while no claimant funds are ever at risk — is in
+  [SECURITY.md](SECURITY.md).
+- The board passed a **22-test Foundry suite**, including deployment
+  through the canonical CREATE2 Deterministic Deployment Proxy.
+- Ownership is scheduled to be **renounced after both drops end**
+  (9 December 2026, 08:00 UTC), permanently removing the three documented
+  owner capabilities once no drop administration is needed anymore.
+
 ## Repository layout
 
 | Path | Contents |
@@ -75,6 +131,8 @@ returns, yield, or profit of any kind are promised or implied**.
 | `test/` | Foundry test suite (`AgentDropBoard.t.sol`, `MockAgentID.sol`) — 22 tests |
 | `foundry.toml` | Foundry profile (solc 0.8.26, optimizer 200 runs) |
 | `docs/` | The static claim site (plain HTML/CSS/JS, standard injected wallet connection — no pairing codes, no session handover) |
+| `SECURITY.md` | Security model and self-audit summary |
+| `LICENSE` | MIT license |
 
 ## Build & test
 
